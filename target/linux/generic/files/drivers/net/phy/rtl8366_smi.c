@@ -928,72 +928,24 @@ static const struct file_operations fops_rtl8366_mibs = {
 
 static void rtl8366_debugfs_init(struct rtl8366_smi *smi)
 {
-	struct dentry *node;
 	struct dentry *root;
 
 	if (!smi->debugfs_root)
 		smi->debugfs_root = debugfs_create_dir(dev_name(smi->parent),
 						       NULL);
-
-	if (!smi->debugfs_root) {
-		dev_err(smi->parent, "Unable to create debugfs dir\n");
-		return;
-	}
 	root = smi->debugfs_root;
 
-	node = debugfs_create_x16("reg", S_IRUGO | S_IWUSR, root,
-				  &smi->dbg_reg);
-	if (!node) {
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"reg");
-		return;
-	}
-
-	node = debugfs_create_file("val", S_IRUGO | S_IWUSR, root, smi,
-				   &fops_rtl8366_regs);
-	if (!node) {
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"val");
-		return;
-	}
-
-	node = debugfs_create_file("vlan_mc", S_IRUSR, root, smi,
-				   &fops_rtl8366_vlan_mc);
-	if (!node) {
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"vlan_mc");
-		return;
-	}
-
-	node = debugfs_create_u8("vlan_4k_page", S_IRUGO | S_IWUSR, root,
-				  &smi->dbg_vlan_4k_page);
-	if (!node) {
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"vlan_4k_page");
-		return;
-	}
-
-	node = debugfs_create_file("vlan_4k", S_IRUSR, root, smi,
-				   &fops_rtl8366_vlan_4k);
-	if (!node) {
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"vlan_4k");
-		return;
-	}
-
-	node = debugfs_create_file("pvid", S_IRUSR, root, smi,
-				   &fops_rtl8366_pvid);
-	if (!node) {
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"pvid");
-		return;
-	}
-
-	node = debugfs_create_file("mibs", S_IRUSR, smi->debugfs_root, smi,
-				   &fops_rtl8366_mibs);
-	if (!node)
-		dev_err(smi->parent, "Creating debugfs file '%s' failed\n",
-			"mibs");
+	debugfs_create_x16("reg", S_IRUGO | S_IWUSR, root, &smi->dbg_reg);
+	debugfs_create_file("val", S_IRUGO | S_IWUSR, root, smi,
+			    &fops_rtl8366_regs);
+	debugfs_create_file("vlan_mc", S_IRUSR, root, smi,
+			    &fops_rtl8366_vlan_mc);
+	debugfs_create_u8("vlan_4k_page", S_IRUGO | S_IWUSR, root,
+			  &smi->dbg_vlan_4k_page);
+	debugfs_create_file("vlan_4k", S_IRUSR, root, smi,
+			    &fops_rtl8366_vlan_4k);
+	debugfs_create_file("pvid", S_IRUSR, root, smi, &fops_rtl8366_pvid);
+	debugfs_create_file("mibs", S_IRUSR, root, smi, &fops_rtl8366_mibs);
 }
 
 static void rtl8366_debugfs_remove(struct rtl8366_smi *smi)
