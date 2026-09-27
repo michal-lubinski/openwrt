@@ -11,6 +11,7 @@
 	rtl8367rb {
 		compatible = "realtek,rtl8367b";
 		realtek,extif = <6 1 0 1 1 1 1 1 1 2>;
+        realtek,led-config = <9 6 2>;	/* group 0: 10/100/1000+act, 1: 1000+act, 2: link+act */
 		mii-bus = <&mdio0>;
 	};
 };

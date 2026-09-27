@@ -300,6 +300,11 @@ struct rtl8367b_initval {
 #define   RTL8367D_SDS1_MODE_MASK		0x1f
 #define   RTL8367D_PORT_SDS_MODE_DISABLE		0x1f
 
+#define RTL8367B_LED_CONFIGURATION_REG	0x1b03
+#define   RTL8367B_LED_CONFIG_SEL		BIT(14)
+#define   RTL8367B_LED_GROUP_CFG_MASK	0x0fff	/* 3 groups x 4 bits */
+#define RTL8367B_NUM_LED_GROUPS			3
+
 static struct rtl8366_mib_counter
 rtl8367b_mib_counters[RTL8367B_NUM_MIB_COUNTERS] = {
 	{0,   0, 4, "ifInOctets"			},
@@ -887,6 +892,34 @@ err_init:
 	return err;
 }
 
+static int rtl8367b_led_init_of(struct rtl8366_smi *smi)
+{
+	u32 cfg[RTL8367B_NUM_LED_GROUPS];
+	int err, i;
+
+	err = of_property_read_u32_array(
+		smi->parent->of_node,
+		"realtek,led-config",
+		cfg, ARRAY_SIZE(cfg)
+	);
+	if (err == -EINVAL)	/* property not present: leave LEDs alone */
+		return 0;
+	if (err) {
+		dev_err(smi->parent, "invalid realtek,led-config property\n");
+		return err;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cfg); i++)
+		if (cfg[i] > 0xf)
+			return -EINVAL;
+
+	REG_RMW(smi, RTL8367B_LED_CONFIGURATION_REG,
+		RTL8367B_LED_CONFIG_SEL | RTL8367B_LED_GROUP_CFG_MASK,
+		cfg[0] | (cfg[1] << 4) | (cfg[2] << 8));
+
+	return 0;
+}
+
 static int rtl8367b_setup(struct rtl8366_smi *smi)
 {
 	int err;
@@ -902,6 +935,10 @@ static int rtl8367b_setup(struct rtl8366_smi *smi)
 
 	/* initialize external interfaces */
 	err = rtl8367b_extif_init_of(smi, "realtek,extif");
+	if (err)
+		return err;
+
+	err = rtl8367b_led_init_of(smi);
 	if (err)
 		return err;
 
