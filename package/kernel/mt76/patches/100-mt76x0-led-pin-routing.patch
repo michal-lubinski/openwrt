@@ -1,0 +1,72 @@
+From eee66a3ba7e91d35449e04712ddfcd0e176672c5 Mon Sep 17 00:00:00 2001
+From: Michał Łubiński <mlubinski@coffeetocode.pl>
+Date: Sun, 27 Sep 2026 18:27:23 +0200
+Subject: [PATCH] wifi: mt76: mt76x0: route LED pin when the board describes an
+ LED
+
+On the ASUS RT-AC52U B1 (MT7620A + MT7610E), the 5 GHz LED is wired
+to LED pin 0 of the MT7610E, but stays dark with mt76: the LED
+registers (MT_LED_CTRL, MT_LED_S0/S1) are programmed correctly, yet
+the pin never changes state.
+
+Comparing registers with the vendor driver shows the difference:
+the vendor driver sets bit 11 of MT_CMB_CTRL, which mt76 only sets
+for MT7630. The antenna word in this board's EEPROM is 0x17ff, so
+mt76 writes 0x07ff to the low half of MT_CMB_CTRL, while the vendor
+driver has 0x0fff. Setting bit 11 at runtime makes the LED work at
+once with mt76's normal LED handling.
+
+The meaning of the bit isn't documented, and setting it on every
+MT7610E could affect boards whose pin is wired differently. So only
+set it when the device tree has an "led" subnode for the radio,
+i.e. when the board declares an LED on the chip. Boards without the
+node are unchanged.
+
+Tested on the ASUS RT-AC52U B1 with an "led" node containing
+led-active-low: the 5 GHz LED follows the radio state and the
+throughput trigger, and 5 GHz throughput is unchanged.
+---
+ mt76x0/phy.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/mt76x0/phy.c b/mt76x0/phy.c
+index ec554a0..22729b3 100644
+--- a/mt76x0/phy.c
++++ b/mt76x0/phy.c
+@@ -8,6 +8,7 @@
+ 
+ #include <linux/kernel.h>
+ #include <linux/etherdevice.h>
++#include <linux/of.h>
+ 
+ #include "mt76x0.h"
+ #include "mcu.h"
+@@ -423,6 +424,16 @@ mt76x0_phy_set_chan_bbp_params(struct mt76x02_dev *dev, u16 rf_bw_band)
+ 	}
+ }
+ 
++static bool mt76x0_has_led_node(struct mt76x02_dev *dev)
++{
++	struct device_node *np;
++
++	np = of_get_child_by_name(dev->mt76.dev->of_node, "led");
++	of_node_put(np);
++
++	return !!np;
++}
++
+ static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
+ {
+ 	u16 ee_ant = mt76x02_eeprom_get(dev, MT_EE_ANTENNA);
+@@ -461,6 +472,9 @@ static void mt76x0_phy_ant_select(struct mt76x02_dev *dev)
+ 
+ 	if (is_mt7630(dev))
+ 		ee_ant |= BIT(14) | BIT(11);
++	else if (mt76x0_has_led_node(dev))
++		/* route the LED pin to the LED controller */
++		ee_ant |= BIT(11);
+ 
+ 	mt76_wr(dev, MT_WLAN_FUN_CTRL, wlan);
+ 	mt76_rmw(dev, MT_CMB_CTRL, GENMASK(15, 0), ee_ant);
+-- 
+2.43.0
